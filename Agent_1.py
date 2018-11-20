@@ -54,21 +54,21 @@ class Agent():
         with torch.no_grad():            
             #cuda tensors cannot be converted to numpy
             #for i in range(self.num_agents):
-            actions = self.actor_local(state).cpu().data.numpy()
+            action = self.actor_local(state).cpu().data.numpy()
         #set back to training mode
         self.actor_local.train()
-        
         #add OUNoise to action to aid exploration
         for i in range(self.num_agents):
-               actions[i]+=self.noise.sample()
-        return np.clip(actions,-1,1)
+               action[i]+=self.noise.sample()
+        return np.clip(action,-1,1)
    
        
-    def step(self):
+    def step(self,t):
         #Add s,a,r,s tuple to memory 
         #if replay memory has batch_size experiences, then learn
-        if len(self.memory)> BATCH_SIZE:
-            self.learn(self.memory.sample())
+        if len(self.memory)> BATCH_SIZE and t%20 == 0:
+            for _ in range(0,10):
+                self.learn(self.memory.sample())
                      
     def learn(self,experience):
         #Extract sars from experience
@@ -77,7 +77,7 @@ class Agent():
         #get next action
         next_action_target = self.actor_target(next_state)
         #calculate actual Q value
-        Q_actual = reward + GAMMA*(self.critic_target(next_state,next_action_target)*(1-done))
+        Q_actual = reward + (GAMMA*self.critic_target(next_state,next_action_target)*(1-done))
         
         #calculate expected Q value
         Q_expected = self.critic_local(state,action)
