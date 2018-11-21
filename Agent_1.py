@@ -13,13 +13,11 @@ GAMMA = 0.995
 TAU   = 0.001
 BATCH_SIZE= 512
 BUFFER_SIZE= int(1e5)
-weight_decay_Q = 1e-6
+weight_decay_Q = 0.001
 ##########################################
 
 class Agent():
     def __init__(self,state_size,action_size,seed,num_agents):
-       
-        
         self.num_agents = num_agents
         self.state_size = state_size
         self.action_size = action_size
@@ -71,6 +69,7 @@ class Agent():
                 self.learn(self.memory.sample())
                      
     def learn(self,experience):
+        global GAMMA
         #Extract sars from experience
         state,action,reward,next_state,done = experience
         ####update critic first#####
@@ -97,18 +96,20 @@ class Agent():
         #Clip grad (Attempt #2)
         torch.nn.utils.clip_grad_norm_(self.actor_local.parameters(),1)
         self.actor_optimizer.step()
+
+        self.soft_update(self.critic_local, self.critic_target)
+        self.soft_update(self.actor_local, self.actor_target)                     
+
         
-        self.soft_update(self.actor_target,self.actor_local)
-        self.soft_update(self.critic_target,self.critic_local)
          
     
     def reset(self):
         self.noise.reset()
     
-    def soft_update(self,target,local):
-        for target_param, local_param in zip(target.parameters(),local.parameters()):
-            target_param.data.copy_(TAU*local_param.data + (1.0-TAU)*target_param.data)
-            
+    def soft_update(self, local_model, target_model):
+        global TAU
+        for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
+            target_param.data.copy_(TAU*local_param.data + (1.0-TAU)*target_param.data)        
         
 class ReplayBuffer():
     def __init__(self,action_size,buffer_size,batch_size,seed):
@@ -153,6 +154,6 @@ class OUNoise:
     def sample(self):
         """Update internal state and return it as a noise sample."""
         x = self.state
-        dx = self.theta * (self.mu - x) + self.sigma * np.array([random.random() for i in range(len(x))])
+        dx = self.theta * (self.mu - x) + self.sigma * np.array([random.gauss(0.0,1.0) for i in range(len(x))])
         self.state = x + dx
         return self.state
